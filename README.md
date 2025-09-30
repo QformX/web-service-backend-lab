@@ -25,14 +25,14 @@ RESTful API для блога на FastAPI с PostgreSQL.
 
 ## 📚 Документация
 
-- **[QUICKSTART.md](QUICKSTART.md)** - 🚀 Быстрый старт для начинающих
-- **[DOCKER.md](DOCKER.md)** - 🐳 Подробное руководство по Docker
-- **[MIGRATION_GUIDE.md](MIGRATION_GUIDE.md)** - 📖 Руководство по миграции на PostgreSQL
-- **[COMPLETED.md](COMPLETED.md)** - ✅ Что было сделано и текущий статус
+- **[QUICKSTART.md](docs/QUICKSTART.md)** - 🚀 Быстрый старт для начинающих
+- **[DOCKER.md](docs/DOCKER.md)** - 🐳 Подробное руководство по Docker
+- **[MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md)** - 📖 Руководство по миграции на PostgreSQL
+- **[COMPLETED.md](docs/COMPLETED.md)** - ✅ Что было сделано и текущий статус
 
 ## Быстрый старт
 
-> 💡 **Для подробных инструкций см. [QUICKSTART.md](QUICKSTART.md)**
+> 💡 **Для подробных инструкций см. [QUICKSTART.md](docs/QUICKSTART.md)**
 
 ### С Docker (рекомендуется)
 
@@ -62,7 +62,7 @@ RESTful API для блога на FastAPI с PostgreSQL.
    - Swagger UI: http://localhost:8000/docs
    - ReDoc: http://localhost:8000/redoc
 
-Подробнее о работе с Docker см. [DOCKER.md](DOCKER.md)
+Подробнее о работе с Docker см. [DOCKER.md](docs/DOCKER.md)
 
 ### Локальная разработка
 
