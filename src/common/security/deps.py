@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from src.common.security.jwt import decode_token
 from src.infrastructure.db.deps import get_db
 from src.infrastructure.db.models import User
+from sqlalchemy import select
 
 
 bearer_scheme = HTTPBearer(auto_error=False)
