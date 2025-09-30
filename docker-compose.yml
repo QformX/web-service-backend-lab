@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: blog-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bloguser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blogpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-blogdb}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bloguser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - blog-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: blog-api
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-bloguser}:${POSTGRES_PASSWORD:-blogpassword}@db:5432/${POSTGRES_DB:-blogdb}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ACCESS_TOKEN_EXPIRES_MIN: ${JWT_ACCESS_TOKEN_EXPIRES_MIN:-30}
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - blog-network
+    volumes:
+      - ./src:/app/src
+    # Override command for development with hot-reload
+    command: ["--reload"]
+
+volumes:
+  postgres_data:
+
+networks:
+  blog-network:
+    driver: bridge

@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from src.infrastructure.db.config import get_database_url
 
 
-engine = create_engine(get_database_url(), pool_pre_ping=True)
+# Create engine for PostgreSQL (SQLite support removed)
+database_url = get_database_url()
+engine = create_engine(database_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, class_=Session)
 
 

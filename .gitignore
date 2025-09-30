@@ -57,9 +57,15 @@ logs/
 .env
 .env.*
 !.env.example
+!env.example
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+app.db
 
 # Alembic
-alembic.ini
 alembic/versions/__pycache__/
 
 # Docker

@@ -6,8 +6,11 @@ import os
 def get_database_url() -> str:
     url = os.getenv("DATABASE_URL")
     if not url:
-        # Default to local SQLite for easy local testing
-        url = "sqlite:///./app.db"
+        # Explicitly require DATABASE_URL now that SQLite support is removed
+        raise RuntimeError(
+            "DATABASE_URL is not set. Provide a PostgreSQL URL, e.g. "
+            "postgresql+psycopg://user:password@host:5432/dbname"
+        )
     return url
 
 
