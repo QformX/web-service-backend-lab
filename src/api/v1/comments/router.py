@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from src.api.v1.comments.schemas import CommentCreate, CommentOut
@@ -12,7 +12,7 @@ from src.common.security.deps import get_current_user
 router = APIRouter(prefix="/articles", tags=["comments"])
 
 
-@router.post("/{slug}/comments", response_model=CommentOut)
+@router.post("/{slug}/comments", response_model=CommentOut, status_code=status.HTTP_201_CREATED)
 def add_comment(slug: str, payload: CommentCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> CommentOut:
     article = db.query(Article).filter(Article.slug == slug).first()
     if not article:
@@ -25,11 +25,16 @@ def add_comment(slug: str, payload: CommentCreate, db: Session = Depends(get_db)
 
 
 @router.get("/{slug}/comments", response_model=list[CommentOut])
-def list_comments(slug: str, db: Session = Depends(get_db)) -> list[CommentOut]:
+def list_comments(
+    slug: str,
+    db: Session = Depends(get_db),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+) -> list[CommentOut]:
     article = db.query(Article).filter(Article.slug == slug).first()
     if not article:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
-    comments = db.query(Comment).filter(Comment.article_id == article.id).all()
+    comments = db.query(Comment).filter(Comment.article_id == article.id).offset(offset).limit(limit).all()
     return [CommentOut.model_validate(c) for c in comments]
 
 

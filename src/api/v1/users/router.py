@@ -15,7 +15,7 @@ from src.common.security.deps import get_current_user
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.post("", response_model=UserOut)
+@router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def register_user(payload: UserCreate, db: Session = Depends(get_db)) -> UserOut:
     if db.query(User).filter((User.email == payload.email) | (User.username == payload.username)).first():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email or username already registered")

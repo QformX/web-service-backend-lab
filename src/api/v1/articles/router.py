@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Query
 
 from src.api.v1.articles.schemas import ArticleCreate, ArticleOut, ArticleUpdate
 from src.infrastructure.db.deps import get_db
@@ -14,7 +14,7 @@ from src.common.security.deps import get_current_user
 router = APIRouter(prefix="/articles", tags=["articles"])
 
 
-@router.post("", response_model=ArticleOut)
+@router.post("", response_model=ArticleOut, status_code=status.HTTP_201_CREATED)
 def create_article(payload: ArticleCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> ArticleOut:
     base_slug = slugify(payload.title)
     candidate = base_slug
@@ -44,8 +44,12 @@ def create_article(payload: ArticleCreate, db: Session = Depends(get_db), curren
 
 
 @router.get("", response_model=list[ArticleOut])
-def list_articles(db: Session = Depends(get_db)) -> list[ArticleOut]:
-    articles = db.query(Article).all()
+def list_articles(
+    db: Session = Depends(get_db),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+) -> list[ArticleOut]:
+    articles = db.query(Article).offset(offset).limit(limit).all()
     return [
         ArticleOut(slug=a.slug, title=a.title, description=a.description, body=a.body, tagList=[t.name for t in a.tags])
         for a in articles
