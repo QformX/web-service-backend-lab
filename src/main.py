@@ -14,7 +14,6 @@ def create_app() -> FastAPI:
         description="RESTful API для блога с JWT аутентификацией",
     )
 
-    # Health check endpoint
     @app.get("/health", tags=["Health"])
     async def health_check():
         return {"status": "ok", "message": "Service is running"}
@@ -22,8 +21,6 @@ def create_app() -> FastAPI:
     app.include_router(users_router, prefix="/api")
     app.include_router(articles_router, prefix="/api")
     app.include_router(comments_router, prefix="/api")
-
-    # Tables are managed via Alembic migrations
 
     return app
 

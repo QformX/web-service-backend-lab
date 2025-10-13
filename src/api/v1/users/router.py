@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
+from sqlalchemy import select
 
 from src.api.v1.users.schemas import UserCreate, UserLogin, UserOut, UserUpdate, TokenOut
 from src.infrastructure.db.deps import get_db
@@ -16,8 +17,9 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def register_user(payload: UserCreate, db: Session = Depends(get_db)) -> UserOut:
-    if db.query(User).filter((User.email == payload.email) | (User.username == payload.username)).first():
+async def register_user(payload: UserCreate, db: AsyncSession = Depends(get_db)) -> UserOut:
+    result = await db.execute(select(User).where((User.email == payload.email) | (User.username == payload.username)))
+    if result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email or username already registered")
     user = User(
         email=payload.email,
@@ -27,14 +29,15 @@ def register_user(payload: UserCreate, db: Session = Depends(get_db)) -> UserOut
         image_url=payload.image_url,
     )
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
     return UserOut.model_validate(user)
 
 
 @router.post("/login", response_model=TokenOut)
-def login_user(payload: UserLogin, db: Session = Depends(get_db)) -> TokenOut:
-    user = db.query(User).filter(User.email == payload.email).first()
+async def login_user(payload: UserLogin, db: AsyncSession = Depends(get_db)) -> TokenOut:
+    result = await db.execute(select(User).where(User.email == payload.email))
+    user = result.scalar_one_or_none()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid credentials")
     token = create_access_token(subject=user.email)
@@ -42,18 +45,20 @@ def login_user(payload: UserLogin, db: Session = Depends(get_db)) -> TokenOut:
 
 
 @router.get("/me", response_model=UserOut)
-def get_me(current_user: User = Depends(get_current_user)) -> UserOut:
+async def get_me(current_user: User = Depends(get_current_user)) -> UserOut:
     return UserOut.model_validate(current_user)
 
 
 @router.put("/me", response_model=UserOut)
-def update_current_user(payload: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> UserOut:
+async def update_current_user(payload: UserUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)) -> UserOut:
     if payload.email and payload.email != current_user.email:
-        if db.query(User).filter(User.email == payload.email).first():
+        result = await db.execute(select(User).where(User.email == payload.email))
+        if result.scalar_one_or_none():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already in use")
         current_user.email = payload.email
     if payload.username and payload.username != current_user.username:
-        if db.query(User).filter(User.username == payload.username).first():
+        result = await db.execute(select(User).where(User.username == payload.username))
+        if result.scalar_one_or_none():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already in use")
         current_user.username = payload.username
     if payload.password:
@@ -63,8 +68,8 @@ def update_current_user(payload: UserUpdate, db: Session = Depends(get_db), curr
     if payload.image_url is not None:
         current_user.image_url = payload.image_url
     db.add(current_user)
-    db.commit()
-    db.refresh(current_user)
+    await db.commit()
+    await db.refresh(current_user)
     return UserOut.model_validate(current_user)
 
 

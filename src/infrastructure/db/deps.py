@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from typing import Generator
+from typing import AsyncGenerator
 
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.infrastructure.db.session import SessionLocal
+from src.infrastructure.db.session import AsyncSessionLocal
 
 
-def get_db() -> Generator[Session, None, None]:
-    db = SessionLocal()
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    db = AsyncSessionLocal()
     try:
         yield db
     finally:
-        db.close()
+        await db.close()
 
 

@@ -24,7 +24,7 @@ services:
       dockerfile: Dockerfile
     container_name: blog-api
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-bloguser}:${POSTGRES_PASSWORD:-blogpassword}@db:5432/${POSTGRES_DB:-blogdb}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-bloguser}:${POSTGRES_PASSWORD:-blogpassword}@db:5432/${POSTGRES_DB:-blogdb}
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_ACCESS_TOKEN_EXPIRES_MIN: ${JWT_ACCESS_TOKEN_EXPIRES_MIN:-30}
@@ -37,7 +37,6 @@ services:
       - blog-network
     volumes:
       - ./src:/app/src
-    # Override command for development with hot-reload
     command: ["--reload"]
 
 volumes:

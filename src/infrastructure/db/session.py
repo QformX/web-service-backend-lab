@@ -1,30 +1,29 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
-from typing import Iterator
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
 from src.infrastructure.db.config import get_database_url
 
 
-# Sync engine for PostgreSQL (SQLite support removed)
 database_url: str = get_database_url()
-engine = create_engine(database_url, pool_pre_ping=True)
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, class_=Session)
+async_database_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
+engine = create_async_engine(async_database_url, pool_pre_ping=True)
+AsyncSessionLocal = async_sessionmaker(bind=engine, autocommit=False, autoflush=False, class_=AsyncSession)
 
 
-@contextmanager
-def get_session() -> Iterator[Session]:
-    session = SessionLocal()
+@asynccontextmanager
+async def get_async_session() -> AsyncIterator[AsyncSession]:
+    session = AsyncSessionLocal()
     try:
         yield session
-        session.commit()
+        await session.commit()
     except Exception:
-        session.rollback()
+        await session.rollback()
         raise
     finally:
-        session.close()
+        await session.close()
 
 
