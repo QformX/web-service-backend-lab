@@ -42,8 +42,12 @@ async def create_article(payload: ArticleCreate, db: AsyncSession = Depends(get_
     article.tags = tags
     db.add(article)
     await db.commit()
-    await db.refresh(article, ["tags"])
-    return ArticleOut(slug=article.slug, title=article.title, description=article.description, body=article.body, tagList=[t.name for t in article.tags])
+    await db.refresh(article)
+
+    result = await db.execute(select(Article).options(selectinload(Article.tags)).where(Article.id == article.id))
+    article_with_tags = result.scalar_one()
+    
+    return ArticleOut(slug=article_with_tags.slug, title=article_with_tags.title, description=article_with_tags.description, body=article_with_tags.body, tagList=[t.name for t in article_with_tags.tags])
 
 
 @router.get("", response_model=list[ArticleOut])
@@ -95,8 +99,12 @@ async def update_article(slug: str, payload: ArticleUpdate, db: AsyncSession = D
         article.tags = new_tags
     db.add(article)
     await db.commit()
-    await db.refresh(article, ["tags"])
-    return ArticleOut(slug=article.slug, title=article.title, description=article.description, body=article.body, tagList=[t.name for t in article.tags])
+    await db.refresh(article)
+    
+    result = await db.execute(select(Article).options(selectinload(Article.tags)).where(Article.slug == slug))
+    article_with_tags = result.scalar_one()
+    
+    return ArticleOut(slug=article_with_tags.slug, title=article_with_tags.title, description=article_with_tags.description, body=article_with_tags.body, tagList=[t.name for t in article_with_tags.tags])
 
 
 @router.delete("/{slug}")

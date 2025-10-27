@@ -1,9 +1,6 @@
 from __future__ import annotations
-
 from typing import AsyncGenerator
-
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.infrastructure.db.session import AsyncSessionLocal
 
 
