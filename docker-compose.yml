@@ -48,6 +48,7 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@backend-db:5432/${POSTGRES_DB}
+      UVICORN_ARGS: --reload
     ports:
       - "${BACKEND_PORT}:8000"
     volumes:
@@ -58,7 +59,6 @@ services:
         condition: service_healthy
     networks:
       - blog-network
-    command: ["--reload"]
 
   users-api:
     build:
@@ -69,6 +69,7 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@users-db:5432/${POSTGRES_DB_USERS}
+      UVICORN_ARGS: --reload
     ports:
       - "${USERS_PORT}:8000"
     volumes:
@@ -79,7 +80,6 @@ services:
         condition: service_healthy
     networks:
       - blog-network
-    command: ["--reload"]
 
   # --- Gateway ---
   gateway:
