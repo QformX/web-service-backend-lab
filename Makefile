@@ -1,4 +1,4 @@
-.PHONY: help build up down restart logs shell db-shell migrate migration clean
+.PHONY: help build up down restart logs logs-backend logs-users logs-gateway shell-backend shell-users db-shell-backend db-shell-users migrate-backend migrate-users migration-backend migration-users clean rebuild init
 
 help: ## Показать эту справку
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -18,72 +18,62 @@ restart: ## Перезапустить все сервисы
 logs: ## Показать логи всех сервисов
 	docker-compose logs -f
 
-logs-app: ## Показать логи приложения
-	docker-compose logs -f app
+logs-backend: ## Показать логи backend
+	docker-compose logs -f backend
 
-logs-db: ## Показать логи базы данных
-	docker-compose logs -f db
+logs-users: ## Показать логи users-api
+	docker-compose logs -f users-api
 
-shell: ## Открыть bash в контейнере приложения
-	docker-compose exec app bash
+logs-gateway: ## Показать логи gateway
+	docker-compose logs -f gateway
 
-db-shell: ## Открыть psql в контейнере базы данных
-	docker-compose exec db psql -U bloguser -d blogdb
+shell-backend: ## Bash в backend
+	docker-compose exec backend bash
 
-migrate: ## Применить миграции
-	docker-compose exec app alembic upgrade head
+shell-users: ## Bash в users-api
+	docker-compose exec users-api bash
 
-migration: ## Создать новую миграцию (использование: make migration MSG="описание")
-	docker-compose exec app alembic revision --autogenerate -m "$(MSG)"
+db-shell-backend: ## PSQL в backend DB
+	docker-compose exec backend-db psql -U bloguser -d blogdb
 
-migration-history: ## Показать историю миграций
-	docker-compose exec app alembic history
+db-shell-users: ## PSQL в users DB
+	docker-compose exec users-db psql -U bloguser -d usersdb
 
-migration-current: ## Показать текущую версию миграции
-	docker-compose exec app alembic current
+migrate-backend: ## Миграции backend
+	docker-compose exec backend alembic upgrade head
 
-clean: ## Остановить и удалить все контейнеры и volumes
+migrate-users: ## Миграции users
+	docker-compose exec users-api alembic upgrade head
+
+migration-backend: ## Создать миграцию backend (MSG="...")
+	docker-compose exec backend alembic revision --autogenerate -m "$(MSG)"
+
+migration-users: ## Создать миграцию users (MSG="...")
+	docker-compose exec users-api alembic revision --autogenerate -m "$(MSG)"
+
+clean: ## Полная очистка
 	docker-compose down -v
 
-rebuild: ## Полная пересборка (полезно при смене ОС)
-	docker-compose down
+rebuild: ## Полная пересборка
+	docker-compose down -v
 	docker-compose build --no-cache
 	docker-compose up -d
-	@echo "Проект пересобран! API доступен на http://localhost:8000"
+	@echo "Сервисы перезапущены!"
+	@echo "Gateway: http://localhost:8000"
+	@echo "Users Swagger: http://localhost:8001/docs"
+	@echo "Backend Swagger: http://localhost:8002/docs"
 
-setup: ## Первоначальная настройка проекта
-	@echo "Настройка проекта..."
-	@if [ ! -f .env ]; then \
-		echo "Создание .env файла..."; \
-		cp env.example .env; \
-		echo "Отредактируйте .env файл перед продолжением!"; \
-	fi
-	@echo "Запуск Docker контейнеров..."
+init: ## Инициализация проекта (первый запуск)
+	@echo "Запуск контейнеров..."
 	docker-compose up -d
-	@echo "Ожидание запуска базы данных..."
-	sleep 5
-	@echo "Применение миграций..."
-	docker-compose exec app alembic upgrade head || true
-	@echo "Готово! API доступен на http://localhost:8000"
-	@echo "Документация API: http://localhost:8000/docs"
-
-dev: ## Запустить в режиме разработки
-	docker-compose up
-
-test: ## Запустить тесты (когда будут добавлены)
-	docker-compose exec app pytest
-
-status: ## Показать статус контейнеров
-	docker-compose ps
-
-prod-up: ## Запустить в production режиме
-	docker-compose -f docker-compose.prod.yml up -d
-
-prod-down: ## Остановить production
-	docker-compose -f docker-compose.prod.yml down
-
-prod-logs: ## Показать логи production
-	docker-compose -f docker-compose.prod.yml logs -f
-
-prod-build: ## Собрать production образ
-	docker-compose -f docker-compose.prod.yml build
+	@echo "Ожидание запуска баз данных (10 сек)..."
+	@timeout /t 10 >nul 2>&1 || sleep 10
+	@echo "Создание миграций для Users..."
+	docker-compose exec users-api alembic revision --autogenerate -m "Initial users migration"
+	@echo "Применение миграций для Users..."
+	docker-compose exec users-api alembic upgrade head
+	@echo "Создание миграций для Backend..."
+	docker-compose exec backend alembic revision --autogenerate -m "Initial backend migration"
+	@echo "Применение миграций для Backend..."
+	docker-compose exec backend alembic upgrade head
+	@echo "Готово! Проект инициализирован."

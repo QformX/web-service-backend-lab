@@ -1,208 +1,138 @@
-# Blog API
+# Blog API (Microservices)
 
-RESTful API для блога на FastAPI с PostgreSQL.
+Микросервисная архитектура для блога на FastAPI с PostgreSQL, разделенная на сервисы пользователей и статей.
+
+## Архитектура
+
+Проект разделен на независимые микросервисы:
+- **Users API** (Port 8001): Управление пользователями, аутентификация (JWT). Своя БД (`users-db`).
+- **Backend API** (Port 8002): Управление статьями и комментариями. Своя БД (`backend-db`).
+- **API Gateway** (Port 8000): Nginx, маршрутизирующий запросы к нужным сервисам.
 
 ## Возможности
 
-- 🔐 Аутентификация и авторизация с JWT
-- 📝 Управление статьями (создание, чтение, обновление, удаление)
-- 💬 Система комментариев
-- 👤 Управление пользователями
-- 🐳 Docker-ready с PostgreSQL
-- 📊 SQLAlchemy ORM
-- 🔄 Миграции базы данных с Alembic
+- 🔐 **Users API**: Регистрация, вход, профиль пользователя.
+- 📝 **Backend API**: Статьи, комментарии, теги (без прямой связи с таблицей пользователей).
+- 🚀 **Gateway**: Единая точка входа http://localhost:8000.
+- 🐳 **Docker**: Полная контейнеризация всех компонентов.
+- 📜 **Scripts**: Удобные скрипты управления (`manage.ps1` для Windows, `Makefile` для Linux/Mac).
 
 ## Технологический стек
 
-- **Framework**: FastAPI 0.115.0
-- **Database**: PostgreSQL 16 (через SQLAlchemy 2.0.35 + psycopg 3.2.3)
-- **Authentication**: JWT (PyJWT 2.9.0)
-- **Password Hashing**: Passlib с bcrypt
-- **Migrations**: Alembic 1.13.2
-- **Validation**: Pydantic 2.9.2 (с email-validator)
-- **Server**: Uvicorn с uvloop
-- **Runtime**: Python 3.13
+- **Services**: FastAPI, Python 3.11
+- **Database**: PostgreSQL 16 (две независимые базы)
+- **ORM**: SQLAlchemy 2.0 (Async)
+- **Gateway**: Nginx
+- **Migrations**: Alembic
+- **DevOps**: Docker Compose
 
-## 📚 Документация
+## 🚀 Быстрый старт
 
-- **[QUICKSTART.md](docs/QUICKSTART.md)** - 🚀 Быстрый старт для начинающих
-- **[DOCKER.md](docs/DOCKER.md)** - 🐳 Подробное руководство по Docker
-- **[MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md)** - 📖 Руководство по миграции на PostgreSQL
-- **[COMPLETED.md](docs/COMPLETED.md)** - ✅ Что было сделано и текущий статус
+### Windows (PowerShell)
 
-## Быстрый старт
+1. **Инициализация проекта** (первый запуск):
+   ```powershell
+   .\manage.ps1 init
+   ```
+   *Команда запустит контейнеры, дождется БД и применит миграции.*
 
-> 💡 **Для подробных инструкций см. [QUICKSTART.md](docs/QUICKSTART.md)**
-
-### С Docker (рекомендуется)
-
-1. **Клонируйте репозиторий**:
-   ```bash
-   git clone <repository-url>
-   cd web-service-backend-lab
+2. **Запуск**:
+   ```powershell
+   .\manage.ps1 up
    ```
 
-2. **Настройте окружение**:
-   ```bash
-   cp env.example .env
-   # Отредактируйте .env при необходимости
+3. **Остановка**:
+   ```powershell
+   .\manage.ps1 down
    ```
 
-3. **Запустите приложение**:
+### Linux / macOS (Make)
+
+1. **Инициализация**:
    ```bash
-   docker-compose up -d
+   make init
    ```
 
-4. **Примените миграции**:
+2. **Запуск / Остановка**:
    ```bash
-   docker-compose exec app alembic upgrade head
+   make up
+   make down
    ```
 
-5. **Откройте документацию API**:
-   - Swagger UI: http://localhost:8000/docs
-   - ReDoc: http://localhost:8000/redoc
+## 📚 Документация API
 
-Подробнее о работе с Docker см. [DOCKER.md](docs/DOCKER.md)
+После запуска сервисы доступны по адресам:
 
-### Локальная разработка
-
-1. **Создайте виртуальное окружение**:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Linux/Mac
-   # или
-   venv\Scripts\activate  # Windows
-   ```
-
-2. **Установите зависимости**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Настройте переменные окружения**:
-   ```bash
-   cp env.example .env
-   # Отредактируйте .env с вашими настройками
-   ```
-
-4. **Запустите PostgreSQL** (или используйте Docker):
-   ```bash
-   docker-compose up -d db
-   ```
-
-5. **Примените миграции**:
-   ```bash
-   alembic upgrade head
-   ```
-
-6. **Запустите приложение**:
-   ```bash
-   uvicorn src.main:app --reload
-   ```
-
-## API Endpoints
-
-### Пользователи
-- `POST /api/users` - Регистрация нового пользователя
-- `POST /api/users/login` - Вход пользователя (получение JWT токена)
-- `GET /api/users/me` - Получить текущего пользователя
-- `PUT /api/users/me` - Обновить профиль
-
-### Статьи
-- `GET /api/articles` - Список статей
-- `GET /api/articles/{id}` - Получить статью
-- `POST /api/articles` - Создать статью (требуется авторизация)
-- `PUT /api/articles/{id}` - Обновить статью (требуется авторизация)
-- `DELETE /api/articles/{id}` - Удалить статью (требуется авторизация)
-
-### Комментарии
-- `GET /api/articles/{article_id}/comments` - Список комментариев к статье
-- `POST /api/articles/{article_id}/comments` - Добавить комментарий (требуется авторизация)
-- `DELETE /api/comments/{id}` - Удалить комментарий (требуется авторизация)
+| Сервис | URL | Swagger UI | Описание |
+|--------|-----|------------|----------|
+| **Gateway** | `http://localhost:8000` | - | Основной API для клиентов |
+| **Users** | `http://localhost:8000/api/users` | [http://localhost:8001/docs](http://localhost:8001/docs) | Пользователи и Auth |
+| **Backend** | `http://localhost:8000/api/articles` | [http://localhost:8002/docs](http://localhost:8002/docs) | Статьи и Комментарии |
 
 ## Структура проекта
 
 ```
 .
-├── alembic/                  # Миграции базы данных
-│   ├── versions/            # Файлы миграций
-│   └── env.py               # Конфигурация Alembic
-├── src/
-│   ├── api/                 # API endpoints
-│   │   └── v1/             # API версия 1
-│   │       ├── users/      # Пользователи
-│   │       ├── articles/   # Статьи
-│   │       └── comments/   # Комментарии
-│   ├── common/             # Общие утилиты
-│   │   ├── security/       # Безопасность (JWT, пароли)
-│   │   └── utils/          # Вспомогательные функции
-│   ├── infrastructure/     # Инфраструктура
-│   │   └── db/            # База данных
-│   │       ├── models/    # SQLAlchemy модели
-│   │       ├── config.py  # Конфигурация БД
-│   │       ├── session.py # Сессии БД
-│   │       └── deps.py    # Зависимости FastAPI
-│   └── main.py            # Точка входа приложения
-├── docker-compose.yml      # Docker Compose конфигурация
-├── Dockerfile             # Docker образ приложения
-├── alembic.ini           # Конфигурация Alembic
-├── requirements.txt      # Python зависимости
-└── README.md            # Этот файл
+├── gateway/                 # Nginx конфигурация
+│   └── nginx.conf
+├── services/
+│   ├── users/              # Микросервис пользователей
+│   │   ├── src/
+│   │   ├── alembic/        # Миграции пользователей
+│   │   └── Dockerfile
+│   └── backend/            # Микросервис статей (Backend)
+│       ├── src/
+│       ├── alembic/        # Миграции статей
+│       └── Dockerfile
+├── manage.ps1              # Скрипт управления для Windows
+├── Makefile                # Скрипт управления для Linux/Mac
+├── docker-compose.yml      # Оркестрация сервисов
+└── README.md               # Этот файл
 ```
 
-## Разработка
+## Разработка и Миграции
 
-### Создание миграций
+Так как базы данных разделены, миграции управляются отдельно для каждого сервиса.
 
-После изменения моделей:
+### Управление миграциями (Windows)
+
+```powershell
+# Создать миграцию (после изменения моделей)
+.\manage.ps1 migration-users -Msg "Add avatar field"
+.\manage.ps1 migration-backend -Msg "Add tags"
+
+# Применить миграции
+.\manage.ps1 migrate-users
+.\manage.ps1 migrate-backend
+```
+
+### Управление миграциями (Linux/Mac)
 
 ```bash
-# С Docker
-docker-compose exec app alembic revision --autogenerate -m "Description"
-docker-compose exec app alembic upgrade head
-
-# Локально
-alembic revision --autogenerate -m "Description"
-alembic upgrade head
+make migration-users MSG="Add avatar"
+make migration-backend MSG="Add tags"
+make migrate-users
+make migrate-backend
 ```
-
-### Просмотр логов
-
-```bash
-docker-compose logs -f app
-```
-
-### Тестирование API
-
-Используйте встроенную документацию Swagger UI по адресу http://localhost:8000/docs
 
 ## Переменные окружения
 
-Основные переменные (см. `env.example`):
+Настройки находятся в `docker-compose.yml` (environment section) или могут быть вынесены в `.env`.
 
-- `DATABASE_URL` - URL подключения к PostgreSQL
-- `SECRET_KEY` - Секретный ключ для JWT
-- `ALGORITHM` - Алгоритм шифрования JWT (по умолчанию HS256)
-- `ACCESS_TOKEN_EXPIRE_MINUTES` - Время жизни токена в минутах
+- `POSTGRES_USER`, `POSTGRES_PASSWORD` - учетные данные БД.
+- `JWT_SECRET` - секретный ключ для подписи токенов (должен совпадать в обоих сервисах!).
 
-## Безопасность
+## Полезные команды
 
-- Пароли хешируются с помощью bcrypt
-- JWT токены для аутентификации
-- Защита от SQL injection через SQLAlchemy ORM
-- Валидация данных с Pydantic
+- **Просмотр логов**:
+  ```powershell
+  .\manage.ps1 logs           # Все логи
+  .\manage.ps1 logs-backend   # Только backend
+  .\manage.ps1 logs-users     # Только users
+  .\manage.ps1 logs-gateway   # Только gateway
+  ```
 
-## Лицензия
-
-MIT
-
-## TODO
-
-- [ ] Добавить тесты (pytest)
-- [ ] Настроить CI/CD
-- [ ] Добавить rate limiting
-- [ ] Добавить кеширование (Redis)
-- [ ] Добавить полнотекстовый поиск
-- [ ] Добавить пагинацию для всех списков
-- [ ] Добавить загрузку изображений
-- [ ] Добавить email уведомления
+- **Полная очистка** (удаление баз данных):
+  ```powershell
+  .\manage.ps1 clean
+  ```

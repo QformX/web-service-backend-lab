@@ -1,15 +1,16 @@
 services:
-  db:
+  # --- Databases ---
+  backend-db:
     image: postgres:16-alpine
-    container_name: blog-postgres
+    container_name: blog-backend-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-bloguser}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blogpassword}
       POSTGRES_DB: ${POSTGRES_DB:-blogdb}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - backend_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bloguser} -d ${POSTGRES_DB:-blogdb}"]
       interval: 10s
@@ -18,29 +19,87 @@ services:
     networks:
       - blog-network
 
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: blog-api
+  users-db:
+    image: postgres:16-alpine
+    container_name: blog-users-db
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-bloguser}:${POSTGRES_PASSWORD:-blogpassword}@db:5432/${POSTGRES_DB:-blogdb}
+      POSTGRES_USER: ${POSTGRES_USER:-bloguser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blogpassword}
+      POSTGRES_DB: ${POSTGRES_DB_USERS:-usersdb}
+    ports:
+      - "5433:5432"
+    volumes:
+      - users_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bloguser} -d ${POSTGRES_DB_USERS:-usersdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - blog-network
+
+  # --- Services ---
+  backend:
+    build:
+      context: ./services/backend
+      dockerfile: Dockerfile
+    container_name: blog-backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-bloguser}:${POSTGRES_PASSWORD:-blogpassword}@backend-db:5432/${POSTGRES_DB:-blogdb}
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_ACCESS_TOKEN_EXPIRES_MIN: ${JWT_ACCESS_TOKEN_EXPIRES_MIN:-30}
     ports:
-      - "${APP_PORT:-8000}:8000"
+      - "8002:8000" # Direct access for Swagger
+    volumes:
+      - ./services/backend/src:/app/src
+      - ./services/backend/alembic:/app/alembic
     depends_on:
-      db:
+      backend-db:
         condition: service_healthy
     networks:
       - blog-network
-    volumes:
-      - ./src:/app/src
     command: ["--reload"]
 
+  users-api:
+    build:
+      context: ./services/users
+      dockerfile: Dockerfile
+    container_name: blog-users-api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-bloguser}:${POSTGRES_PASSWORD:-blogpassword}@users-db:5432/${POSTGRES_DB_USERS:-usersdb}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ACCESS_TOKEN_EXPIRES_MIN: ${JWT_ACCESS_TOKEN_EXPIRES_MIN:-30}
+    ports:
+      - "8001:8000" # Direct access for Swagger
+    volumes:
+      - ./services/users/src:/app/src
+      - ./services/users/alembic:/app/alembic
+    depends_on:
+      users-db:
+        condition: service_healthy
+    networks:
+      - blog-network
+    command: ["--reload"]
+
+  # --- Gateway ---
+  gateway:
+    image: nginx:alpine
+    container_name: blog-gateway
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8000:80"
+    depends_on:
+      - backend
+      - users-api
+    networks:
+      - blog-network
+
 volumes:
-  postgres_data:
+  backend_postgres_data:
+  users_postgres_data:
 
 networks:
   blog-network:
