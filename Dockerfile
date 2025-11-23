@@ -17,8 +17,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Make entrypoint script executable
-RUN chmod +x docker-entrypoint.sh
+# Convert line endings (CRLF to LF) and make scripts executable
+# This ensures compatibility between Windows and Unix-based systems
+RUN sed -i 's/\r$//' docker-entrypoint.sh && \
+    sed -i 's/\r$//' wait-for-db.py && \
+    chmod +x docker-entrypoint.sh && \
+    chmod +x wait-for-db.py
 
 # Create a non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app

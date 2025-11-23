@@ -45,6 +45,12 @@ migration-current: ## Показать текущую версию миграц�
 clean: ## Остановить и удалить все контейнеры и volumes
 	docker-compose down -v
 
+rebuild: ## Полная пересборка (полезно при смене ОС)
+	docker-compose down
+	docker-compose build --no-cache
+	docker-compose up -d
+	@echo "Проект пересобран! API доступен на http://localhost:8000"
+
 setup: ## Первоначальная настройка проекта
 	@echo "Настройка проекта..."
 	@if [ ! -f .env ]; then \
