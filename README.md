@@ -15,7 +15,6 @@
 - 📝 **Backend API**: Статьи, комментарии, теги (без прямой связи с таблицей пользователей).
 - 🚀 **Gateway**: Единая точка входа http://localhost:8000.
 - 🐳 **Docker**: Полная контейнеризация всех компонентов.
-- 📜 **Scripts**: Удобные скрипты управления (`manage.ps1` для Windows, `Makefile` для Linux/Mac).
 
 ## Технологический стек
 
@@ -28,35 +27,37 @@
 
 ## 🚀 Быстрый старт
 
-### Windows (PowerShell)
+Для запуска вам понадобятся **Docker** и **Docker Compose**.
 
-1. **Инициализация проекта** (первый запуск):
-   ```powershell
-   .\manage.ps1 init
-   ```
-   *Команда запустит контейнеры, дождется БД и применит миграции.*
-
-2. **Запуск**:
-   ```powershell
-   .\manage.ps1 up
-   ```
-
-3. **Остановка**:
-   ```powershell
-   .\manage.ps1 down
-   ```
-
-### Linux / macOS (Make)
-
-1. **Инициализация**:
+1. **Настройка переменных окружения**:
+   Создайте файл `.env` на основе примера:
    ```bash
-   make init
+   # Windows
+   copy env.example .env
+   
+   # Linux/Mac
+   cp env.example .env
    ```
 
-2. **Запуск / Остановка**:
+2. **Запуск приложения**:
    ```bash
-   make up
-   make down
+   docker-compose up -d
+   ```
+
+3. **Применение миграций** (только при первом запуске):
+   ```bash
+   # Создание миграций (если база пустая)
+   docker-compose exec users-api alembic revision --autogenerate -m "Init users"
+   docker-compose exec backend alembic revision --autogenerate -m "Init backend"
+   
+   # Применение миграций
+   docker-compose exec users-api alembic upgrade head
+   docker-compose exec backend alembic upgrade head
+   ```
+
+4. **Остановка**:
+   ```bash
+   docker-compose down
    ```
 
 ## 📚 Документация API
@@ -84,9 +85,8 @@
 │       ├── src/
 │       ├── alembic/        # Миграции статей
 │       └── Dockerfile
-├── manage.ps1              # Скрипт управления для Windows
-├── Makefile                # Скрипт управления для Linux/Mac
 ├── docker-compose.yml      # Оркестрация сервисов
+├── env.example             # Пример переменных окружения
 └── README.md               # Этот файл
 ```
 
@@ -94,45 +94,41 @@
 
 Так как базы данных разделены, миграции управляются отдельно для каждого сервиса.
 
-### Управление миграциями (Windows)
+### Управление миграциями
 
-```powershell
-# Создать миграцию (после изменения моделей)
-.\manage.ps1 migration-users -Msg "Add avatar field"
-.\manage.ps1 migration-backend -Msg "Add tags"
-
-# Применить миграции
-.\manage.ps1 migrate-users
-.\manage.ps1 migrate-backend
-```
-
-### Управление миграциями (Linux/Mac)
+Вместо `alembic` используйте команды через `docker-compose exec`:
 
 ```bash
-make migration-users MSG="Add avatar"
-make migration-backend MSG="Add tags"
-make migrate-users
-make migrate-backend
+# Создать миграцию (после изменения моделей)
+# Для Users:
+docker-compose exec users-api alembic revision --autogenerate -m "Add avatar field"
+# Для Backend:
+docker-compose exec backend alembic revision --autogenerate -m "Add tags"
+
+# Применить миграции
+docker-compose exec users-api alembic upgrade head
+docker-compose exec backend alembic upgrade head
 ```
 
 ## Переменные окружения
 
-Настройки находятся в `docker-compose.yml` (environment section) или могут быть вынесены в `.env`.
+Настройки находятся в файле `.env` (см. `env.example`).
 
 - `POSTGRES_USER`, `POSTGRES_PASSWORD` - учетные данные БД.
 - `JWT_SECRET` - секретный ключ для подписи токенов (должен совпадать в обоих сервисах!).
+- `GATEWAY_PORT`, `USERS_PORT`, `BACKEND_PORT` - порты для доступа к сервисам.
 
 ## Полезные команды
 
 - **Просмотр логов**:
-  ```powershell
-  .\manage.ps1 logs           # Все логи
-  .\manage.ps1 logs-backend   # Только backend
-  .\manage.ps1 logs-users     # Только users
-  .\manage.ps1 logs-gateway   # Только gateway
+  ```bash
+  docker-compose logs -f            # Все логи
+  docker-compose logs -f backend    # Только backend
+  docker-compose logs -f users-api  # Только users
+  docker-compose logs -f gateway    # Только gateway
   ```
 
-- **Полная очистка** (удаление баз данных):
-  ```powershell
-  .\manage.ps1 clean
+- **Полная очистка** (удаление контейнеров и данных баз данных):
+  ```bash
+  docker-compose down -v
   ```
