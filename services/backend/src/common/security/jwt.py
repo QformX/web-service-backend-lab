@@ -16,16 +16,6 @@ def _get_algorithm() -> str:
     return os.getenv("JWT_ALGORITHM", "HS256")
 
 
-def create_access_token(subject: str, expires_minutes: int | None = None, extra: Dict[str, Any] | None = None) -> str:
-    now = datetime.now(timezone.utc)
-    expire_delta = timedelta(minutes=expires_minutes or int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES_MIN", "30")))
-    payload: Dict[str, Any] = {"sub": subject, "iat": int(now.timestamp()), "exp": int((now + expire_delta).timestamp())}
-    if extra:
-        payload.update(extra)
-    token = jwt.encode(payload, _get_secret(), algorithm=_get_algorithm())
-    return token
-
-
 def decode_token(token: str) -> Dict[str, Any]:
     return jwt.decode(token, _get_secret(), algorithms=[_get_algorithm()])
 

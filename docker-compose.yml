@@ -3,16 +3,16 @@ services:
   backend-db:
     image: postgres:16-alpine
     container_name: blog-backend-db
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-bloguser}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blogpassword}
-      POSTGRES_DB: ${POSTGRES_DB:-blogdb}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
       - backend_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bloguser} -d ${POSTGRES_DB:-blogdb}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,16 +22,16 @@ services:
   users-db:
     image: postgres:16-alpine
     container_name: blog-users-db
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-bloguser}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blogpassword}
-      POSTGRES_DB: ${POSTGRES_DB_USERS:-usersdb}
+      POSTGRES_DB: ${POSTGRES_DB_USERS}
     ports:
       - "5433:5432"
     volumes:
       - users_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bloguser} -d ${POSTGRES_DB_USERS:-usersdb}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB_USERS}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,13 +44,12 @@ services:
       context: ./services/backend
       dockerfile: Dockerfile
     container_name: blog-backend
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-bloguser}:${POSTGRES_PASSWORD:-blogpassword}@backend-db:5432/${POSTGRES_DB:-blogdb}
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
-      JWT_ACCESS_TOKEN_EXPIRES_MIN: ${JWT_ACCESS_TOKEN_EXPIRES_MIN:-30}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@backend-db:5432/${POSTGRES_DB}
     ports:
-      - "8002:8000" # Direct access for Swagger
+      - "8002:8000"
     volumes:
       - ./services/backend/src:/app/src
       - ./services/backend/alembic:/app/alembic
@@ -66,13 +65,12 @@ services:
       context: ./services/users
       dockerfile: Dockerfile
     container_name: blog-users-api
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-bloguser}:${POSTGRES_PASSWORD:-blogpassword}@users-db:5432/${POSTGRES_DB_USERS:-usersdb}
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
-      JWT_ACCESS_TOKEN_EXPIRES_MIN: ${JWT_ACCESS_TOKEN_EXPIRES_MIN:-30}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@users-db:5432/${POSTGRES_DB_USERS}
     ports:
-      - "8001:8000" # Direct access for Swagger
+      - "8001:8000"
     volumes:
       - ./services/users/src:/app/src
       - ./services/users/alembic:/app/alembic
