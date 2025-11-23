@@ -1,4 +1,4 @@
-name: Build and Publish Docker Image
+name: Build and Publish Docker Images
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
@@ -16,6 +17,25 @@ jobs:
     permissions:
       contents: read
       packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: backend
+            context: ./services/backend
+            dockerfile: Dockerfile
+            image_suffix: backend
+          
+          - service: users
+            context: ./services/users
+            dockerfile: Dockerfile
+            image_suffix: users
+          
+          - service: gateway
+            context: .
+            dockerfile: ./gateway/Dockerfile # Gateway пока не имеет Dockerfile, использует image: nginx. Исправим это ниже.
+            image_suffix: gateway
 
     steps:
       - name: Checkout repository
@@ -35,12 +55,27 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # Создаем имя образа: ghcr.io/user/repo/service-name
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image_suffix }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha
+
+      # Для Gateway нам нужно создать Dockerfile, если его нет, или использовать готовый image nginx и копировать конфиг
+      # В рамках CI проще собрать свой образ с конфигом внутри
+      - name: Create Gateway Dockerfile (if needed)
+        if: matrix.service == 'gateway'
+        run: |
+           echo "FROM nginx:alpine" > gateway/Dockerfile
+           echo "COPY gateway/nginx.conf /etc/nginx/nginx.conf" >> gateway/Dockerfile
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
