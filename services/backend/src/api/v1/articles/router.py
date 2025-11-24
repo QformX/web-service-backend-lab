@@ -75,7 +75,12 @@ async def get_article(slug: str, db: AsyncSession = Depends(get_db)) -> ArticleO
 
 @router.put("/{slug}", response_model=ArticleOut)
 async def update_article(slug: str, payload: ArticleUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)) -> ArticleOut:
-    result = await db.execute(select(Article).where(Article.slug == slug))
+    # Загружаем статью С тегами заранее, чтобы избежать lazy loading
+    result = await db.execute(
+        select(Article)
+        .options(selectinload(Article.tags))
+        .where(Article.slug == slug)
+    )
     article = result.scalar_one_or_none()
     if not article:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
@@ -96,12 +101,18 @@ async def update_article(slug: str, payload: ArticleUpdate, db: AsyncSession = D
                 t = Tag(name=name)
                 db.add(t)
             new_tags.append(t)
+        # Теперь присваивание безопасно, т.к. теги уже загружены
         article.tags = new_tags
     db.add(article)
     await db.commit()
-    await db.refresh(article)
+    await db.refresh(article, ["tags"])
     
-    result = await db.execute(select(Article).options(selectinload(Article.tags)).where(Article.slug == slug))
+    # Перезагружаем с тегами для возврата
+    result = await db.execute(
+        select(Article)
+        .options(selectinload(Article.tags))
+        .where(Article.slug == slug)
+    )
     article_with_tags = result.scalar_one()
     
     return ArticleOut(slug=article_with_tags.slug, title=article_with_tags.title, description=article_with_tags.description, body=article_with_tags.body, tagList=[t.name for t in article_with_tags.tags])
