@@ -49,8 +49,6 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@backend-db:5432/${POSTGRES_DB}
       UVICORN_ARGS: --reload
-    ports:
-      - "${BACKEND_PORT}:8000"
     volumes:
       - ./services/backend/src:/app/src
       - ./services/backend/alembic:/app/alembic
@@ -70,8 +68,6 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@users-db:5432/${POSTGRES_DB_USERS}
       UVICORN_ARGS: --reload
-    ports:
-      - "${USERS_PORT}:8000"
     volumes:
       - ./services/users/src:/app/src
       - ./services/users/alembic:/app/alembic

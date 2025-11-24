@@ -12,6 +12,7 @@ def create_app() -> FastAPI:
         description="API для управления пользователями и аутентификацией",
         docs_url="/docs",
         openapi_url="/openapi.json",
+        root_path="/api/users"
     )
 
     @app.get("/health", tags=["Health"])
