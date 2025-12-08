@@ -1,13 +1,21 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 from sqlalchemy import select
 
-from src.api.v1.users.schemas import UserCreate, UserLogin, UserOut, UserUpdate, TokenOut
+from src.api.v1.users.schemas import (
+    SubscribeRequest,
+    SubscriptionKeyUpdate,
+    TokenOut,
+    UserCreate,
+    UserLogin,
+    UserOut,
+    UserUpdate,
+)
 from src.infrastructure.db.deps import get_db
-from src.infrastructure.db.models import User
+from src.infrastructure.db.models import Subscription, User
 from src.common.security.passwords import hash_password, verify_password
 from src.common.security.jwt import create_access_token
 from src.common.security.deps import get_current_user
@@ -72,5 +80,50 @@ async def update_current_user(payload: UserUpdate, db: AsyncSession = Depends(ge
     await db.commit()
     await db.refresh(current_user)
     return UserOut.model_validate(current_user)
+
+
+@router.put("/me/subscription-key", response_model=UserOut)
+async def update_subscription_key(
+    payload: SubscriptionKeyUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> UserOut:
+    sanitized = payload.subscription_key.strip()
+    if not sanitized:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Subscription key cannot be empty")
+    current_user.subscription_key = sanitized
+    db.add(current_user)
+    await db.commit()
+    await db.refresh(current_user)
+    return UserOut.model_validate(current_user)
+
+
+@router.post("/subscribe", status_code=status.HTTP_204_NO_CONTENT)
+async def subscribe_to_user(
+    payload: SubscribeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    if payload.target_user_id == current_user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot subscribe to yourself")
+
+    target_user = await db.get(User, payload.target_user_id)
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target user not found")
+
+    result = await db.execute(
+        select(Subscription).where(
+            Subscription.subscriber_id == current_user.id,
+            Subscription.target_user_id == payload.target_user_id,
+        )
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    subscription = Subscription(subscriber_id=current_user.id, target_user_id=payload.target_user_id)
+    db.add(subscription)
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

@@ -59,18 +59,22 @@ class UserUpdate(BaseModel):
 
 
 class UserOut(BaseModel):
+    id: int
     email: EmailStr
     username: str
     bio: str | None = None
     image_url: str | None = None
+    subscription_key: str | None = None
 
     model_config = ConfigDict(from_attributes=True, json_schema_extra={
         "examples": [
             {
+                "id": 1,
                 "email": "user@example.com",
                 "username": "john_doe",
                 "bio": "About me",
-                "image_url": "https://example.com/avatar.png"
+                "image_url": "https://example.com/avatar.png",
+                "subscription_key": "secret-key"
             }
         ]
     })
@@ -86,6 +90,26 @@ class TokenOut(BaseModel):
                 "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "token_type": "bearer"
             }
+        ]
+    })
+
+
+class SubscriptionKeyUpdate(BaseModel):
+    subscription_key: str = Field(min_length=1, max_length=512)
+
+    model_config = ConfigDict(json_schema_extra={
+        "examples": [
+            {"subscription_key": "secret-key-from-push-service"}
+        ]
+    })
+
+
+class SubscribeRequest(BaseModel):
+    target_user_id: int = Field(gt=0)
+
+    model_config = ConfigDict(json_schema_extra={
+        "examples": [
+            {"target_user_id": 2}
         ]
     })
 

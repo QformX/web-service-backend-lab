@@ -7,12 +7,16 @@
 Проект разделен на независимые микросервисы:
 - **Users API** (Port 8001): Управление пользователями, аутентификация (JWT). Своя БД (`users-db`).
 - **Backend API** (Port 8002): Управление статьями и комментариями. Своя БД (`backend-db`).
+- **Notifications Worker**: Асинхронный воркер, обрабатывающий очередь уведомлений о новых статьях.
+- **Push Notificator** (Port 8000 внутри docker сети, 8000 на хосте): Сторонний сервис для тестирования push-уведомлений.
+- **Redis**: Очередь задач для уведомлений.
 - **API Gateway** (Port 8000): Nginx, маршрутизирующий запросы к нужным сервисам.
 
 ## Возможности
 
 - 🔐 **Users API**: Регистрация, вход, профиль пользователя.
-- 📝 **Backend API**: Статьи, комментарии, теги (без прямой связи с таблицей пользователей).
+- 📝 **Backend API**: Статьи, комментарии с постановкой задач на уведомления при создании статей.
+- 🔔 **Уведомления**: Подписки между пользователями и push-уведомления через внешний сервис.
 - 🚀 **Gateway**: Единая точка входа http://localhost:8000.
 - 🐳 **Docker**: Полная контейнеризация всех компонентов.
 
@@ -44,14 +48,16 @@
    docker-compose up -d
    ```
 
-3. **Применение миграций** (только при первом запуске):
-   ```bash
-   # Создание миграций (если база пустая)
-   docker-compose exec users-api alembic revision --autogenerate -m "Init users"
-   docker-compose exec backend alembic revision --autogenerate -m "Init backend"
+3. **Миграции применяются автоматически** при старте контейнеров.
    
-   # Применение миграций
+   Если нужно создать новую миграцию после изменения моделей:
+   ```bash
+   # Для Users API
+   docker-compose exec users-api alembic revision --autogenerate -m "Description of changes"
    docker-compose exec users-api alembic upgrade head
+   
+   # Для Backend API
+   docker-compose exec backend alembic revision --autogenerate -m "Description of changes"
    docker-compose exec backend alembic upgrade head
    ```
 
@@ -67,12 +73,22 @@
 | Сервис | URL | Swagger UI | Описание |
 |--------|-----|------------|----------|
 | **Gateway** | `http://localhost:8000` | - | Основной API для клиентов |
-| **Users** | `http://localhost:8000/api/users` | [http://localhost:8001/docs](http://localhost:8001/docs) | Пользователи и Auth |
-| **Backend** | `http://localhost:8000/api/articles` | [http://localhost:8002/docs](http://localhost:8002/docs) | Статьи и Комментарии |
+| **Users** | `http://localhost:8000/api/users` | [http://localhost:8001/docs](http://localhost:8001/docs) | Пользователи, подписки, Auth |
+| **Backend** | `http://localhost:8000/api` | [http://localhost:8002/docs](http://localhost:8002/docs) | Статьи, комментарии |
+| **Push Notificator** | `http://localhost:8005` | [http://localhost:8005/docs](http://localhost:8005/docs) | Тестовый UI и API для push |
 
 ## Структура проекта
 
 ```
+
+## Подписки и уведомления
+
+1. Получите `subscription_key` через UI push-сервиса: откройте [http://localhost:8005](http://localhost:8005), выполните регистрацию браузера и скопируйте ключ из интерфейса.
+2. Передайте ключ в Users API: `PUT /api/users/me/subscription-key` с телом `{"subscription_key": "..."}`.
+3. Подпишитесь на автора: `POST /api/users/subscribe` с `{"target_user_id": <id автора>}`.
+4. Опубликуйте статью через Backend API `POST /api/articles` (JWT токен обязателен). После создания статьи воркер доставит push-уведомление подписчикам.
+
+Для каждой доставки ведется таблица `notificationdelivery`, что защищает от повторных уведомлений при повторах задач. Поведение воркера настраивается переменными `NOTIFICATION_MAX_ATTEMPTS`, `NOTIFICATION_BACKOFF_BASE`, `NOTIFICATION_BACKOFF_MAX`.
 .
 ├── gateway/                 # Nginx конфигурация
 │   └── nginx.conf
@@ -105,10 +121,20 @@ docker-compose exec users-api alembic revision --autogenerate -m "Add avatar fie
 # Для Backend:
 docker-compose exec backend alembic revision --autogenerate -m "Add tags"
 
-# Применить миграции
+# Применить миграции (автоматически применяются при старте контейнеров)
 docker-compose exec users-api alembic upgrade head
 docker-compose exec backend alembic upgrade head
+
+# Проверить текущую версию
+docker-compose exec users-api alembic current
+docker-compose exec backend alembic current
+
+# История миграций
+docker-compose exec users-api alembic history
+docker-compose exec backend alembic history
 ```
+
+**Важно:** Миграции применяются автоматически при запуске контейнеров. Ручное выполнение `upgrade head` требуется только при создании новых миграций без перезапуска.
 
 ## Переменные окружения
 
@@ -116,6 +142,9 @@ docker-compose exec backend alembic upgrade head
 
 - `POSTGRES_USER`, `POSTGRES_PASSWORD` - учетные данные БД.
 - `JWT_SECRET` - секретный ключ для подписи токенов (должен совпадать в обоих сервисах!).
+- `REDIS_URL` - адрес очереди уведомлений (по умолчанию `redis://redis:6379/0`).
+- `NOTIFICATIONS_QUEUE` - имя очереди (по умолчанию `post_notifications`).
+- `PUSH_SERVICE_URL` - URL сервиса push-уведомлений.
 - `GATEWAY_PORT`, `USERS_PORT`, `BACKEND_PORT` - порты для доступа к сервисам.
 
 ## Полезные команды
