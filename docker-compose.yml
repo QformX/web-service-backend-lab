@@ -107,7 +107,7 @@ services:
       NOTIFICATIONS_QUEUE: post_notifications
       PUSH_SERVICE_URL: http://push-notificator:8000/api/v1/notify
     command: >-
-      sh -c "python wait-for-db.py && alembic upgrade head && python -m src.workers.notifications"
+      sh -c "python wait-for-db.py && python -m src.workers.notifications"
     volumes:
       - ./services/users/src:/app/src
       - ./services/users/alembic:/app/alembic
